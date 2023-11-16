@@ -31,7 +31,7 @@ class DES:
     LEFT_ROTATIONS = [
         1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
     ]
-
+#Initial Permutation
     IP = [57, 49, 41, 33, 25, 17, 9, 1,
           59, 51, 43, 35, 27, 19, 11, 3,
           61, 53, 45, 37, 29, 21, 13, 5,
@@ -111,7 +111,7 @@ class DES:
         18, 12, 29, 5, 21, 10,
         3, 24
     ]
-
+#Final Permutation
     FP = [
         39, 7, 47, 15, 55, 23, 63, 31,
         38, 6, 46, 14, 54, 22, 62, 30,
@@ -159,7 +159,27 @@ class DES:
         #################################
         # YOUR CODE HERE
         #################################
+        self.publicKey = stringToBits(self.publicKey)
+        print("BIT PUBLIC KEY",(self.publicKey))
+        print(len(self.publicKey))
 
+        parity_drop_key = permutation(self.publicKey, self.PC1)
+        print("PARITY DROP KEY", parity_drop_key)
+        print(len(parity_drop_key))
+        self.L = parity_drop_key[:28]
+        self.R = parity_drop_key[28:]
+
+        for i in range(16):
+            self.L = self.L[self.LEFT_ROTATIONS[i]:] + self.L[:self.LEFT_ROTATIONS[i]]
+            self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
+
+            LeftRight = self.L + self.R
+            print("SUB KEY", (LeftRight))
+            subkey = permutation(LeftRight, self.PC2)
+
+            self.Kn[i] = subkey
+
+        print(self.Kn)
 
     def _chunk_crypt(self, block, crypt_type):
         """
@@ -189,7 +209,68 @@ class DES:
         # YOUR CODE HERE
         #######################################
 
+        # Apply the initial permutation using IP
+        block = permutation(block, self.IP)
+
+        # Split the block into left and right halves
+        self.L = block[:32]
+        self.R = block[32:]
+
+        # Use subkeys in reverse order for decryption
+        if crypt_type == self.DECRYPTION:
+            self.Kn = self.Kn[::-1]
+
+        # Perform 16 rounds of Feistel network
+        for i, subkey in enumerate(self.Kn):
+            # Save the current values of L and R
+            L_temp = self.L.copy()
+            R_temp = self.R.copy()
+
+            # Expand and permute R using E table
+            expanded_R = permutation(R_temp, self.E)
+
+            # XOR the expanded R with the subkey
+            xor_result = xor(expanded_R, subkey)
+
+            # Apply S-box substitution
+            s_box_output = self.s_box_substitution(xor_result)
+
+            # Permute the result using P table
+            permuted_result = permutation(s_box_output, self.P)
+
+            # XOR the permuted result with the original L
+            self.L = xor(L_temp, permuted_result)
+
+            # Swap L and R for the next round
+            self.L, self.R = R_temp, self.L
+
+        # Combine the final L and R
+        final_block = self.L + self.R
+
+        # Apply the final permutation using FP
+        self.final = permutation(final_block, self.FP)
+
         return self.final
+
+
+    def s_box_substitution(self, data):
+    # Implement the S-box substitution logic using the provided S-boxes
+        result = []
+        for i in range(8):
+        # Take 6 bits from the data
+            chunk = data[i * 6: (i + 1) * 6]
+
+        # Extract row and column indices
+            row = (chunk[0] << 1) + chunk[5]
+            col = (chunk[1] << 3) + (chunk[2] << 2) + (chunk[3] << 1) + chunk[4]
+
+        # Look up the value in the corresponding S-box
+            value = self.S_BOXES[i][row * 16 + col]
+
+        # Convert the value to 4 bits and append to the result
+            result.extend([(value >> 3) & 1, (value >> 2) & 1, (value >> 1) & 1, value & 1])
+
+        return result
 
     def crypt(self, data, crypt_type):
         """
@@ -226,7 +307,7 @@ class DES:
                 #######################################
                 # YOUR CODE HERE
                 #######################################
-
+                print()
 
             # If the mode is ECB
             else:
@@ -235,10 +316,11 @@ class DES:
                 #######################################
                 # YOUR CODE HERE
                 #######################################
+                cipherBlock = self._chunk_crypt(block, crypt_type)
 
             result.append(bitsToString(cipherBlock))
             i += 8
-
+        print("RESULT: ", result)
         return bytes.fromhex('').join(result)
 
     def encrpyt(self, data: bytearray):
@@ -259,6 +341,7 @@ class DES:
         """
         data = validateEncoding(data)
         data = self.crypt(data, self.DECRYPTION)
+        print(unpadData(data))
         return unpadData(data)
 
 
@@ -272,36 +355,45 @@ def handleKey(key: str):
     ############################
     # YOUR CODE HERE
     ############################
+    key = key.encode('utf-8')
+    key = key.ljust(8, b'\0')[:8]
     return key
 
 
-def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_mode="e"):
+def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_mode="d"):
     """
     A test function to test your DES module. You will input the path of the input file, publickey and IV with other
     settings. If the save flag is active the outputs will be saved. The filenames are hardcoded you can change codes.
     If everything is correct, you should be able to restore the encrypted file by using decryption.
     """
     publickey = handleKey(publickey)
+    print(publickey)
     IV = handleKey(IV)
+    print(IV)
 
     cipher = DES(publickey, IV, mode=mode)
     if cipher_mode == "e":
         result = cipher.encrpyt(readBytesFromFile(inputfile))
     elif cipher_mode == "d":
         result = cipher.decrypt(readBytesFromFile(inputfile))
+        result = bytearray(result)
         # result = result.decode('ascii')
     else:
         raise ValueError("Cipher mode should be 'e' for encryption, 'd' for decryption.")
 
     if save:
-        filename = "encrypted.bin" if cipher_mode == "e" else "restored.txt"
+        filename = "encrypted.txt" if cipher_mode == "e" else "restored.txt"
         with open(filename, "wb") as f:
             f.write(result)
     else:
         print(result)
+        return result
 
 
 if __name__ == "__main__":
-    publickey = # Insert key
-    IV = # Insert key
-    test("test.txt", publickey, IV, save=False)
+    publickey = "sample"
+    #publickey = "elpmas"
+    IV = "initial"
+    #IV = "laitini"
+    res = test("encrypted.txt", publickey, IV, save=True)
+
