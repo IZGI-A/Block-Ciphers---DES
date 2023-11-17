@@ -160,7 +160,8 @@ class DES:
         # YOUR CODE HERE
         #################################
         self.publicKey = stringToBits(self.publicKey)
-        print("BIT PUBLIC KEY",(self.publicKey))
+        a = ''.join(str(bit) for bit in self.publicKey)
+        print("BIT PUBLIC KEY",self.publicKey)
         print(len(self.publicKey))
 
         parity_drop_key = permutation(self.publicKey, self.PC1)
@@ -174,7 +175,7 @@ class DES:
             self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
 
             LeftRight = self.L + self.R
-            #print("SUB KEY", (LeftRight))
+            print("SUB KEY", (LeftRight))
             subkey = permutation(LeftRight, self.PC2)
 
             self.Kn[i] = subkey
@@ -263,9 +264,9 @@ class DES:
             #print("PERMUTED: ", permuted_result)
             # XOR the permuted result with the original L
             new_L = xor(L_temp, permuted_result)
-
-            # Swap L and R for the next round
-            self.L, self.R = R_temp, new_L
+            if ((i != 15) and (crypt_type == self.ENCRYPTION)) or (i != 1 and crypt_type == self.DECRYPTION ):
+                # Swap L and R for the next round
+                self.L, self.R = R_temp, new_L
 
         # Combine the final L and R
         final_block = self.L + self.R
@@ -301,7 +302,9 @@ class DES:
         result = list()
         while i < len(data):
             block = stringToBits(data[i:i + 8])
-            #print("BLOCK: ", len(block))
+            a = ''.join(str(bit) for bit in block)
+
+            print("BLOCK: ", (a))
             # XOR with IV if the mode is CBC
             if self.mode == "CBC":
                 # Implement the CBC logic here. Consider both encryption and decryption.
@@ -396,10 +399,10 @@ def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_
 
 
 if __name__ == "__main__":
-    publickey = "sample"
+    publickey = "samplekeyval"
     #publickey = "elpmas"
     IV = "initial"
     #IV = "laitini"
-    res = test("test.txt", publickey, IV, save=False)
+    res = test("test.txt", publickey, IV, save=True)
 
 
