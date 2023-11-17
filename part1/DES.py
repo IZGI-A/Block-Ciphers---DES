@@ -174,12 +174,35 @@ class DES:
             self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
 
             LeftRight = self.L + self.R
-            print("SUB KEY", (LeftRight))
+            #print("SUB KEY", (LeftRight))
             subkey = permutation(LeftRight, self.PC2)
 
             self.Kn[i] = subkey
 
         print(self.Kn)
+
+    def s_box_substitution(self, data):
+        # Implement the S-box substitution logic using the provided S-boxes
+        result = []
+        s_box_input = [data[i:i+6] for i in range(0, len(data), 6)]
+
+        for i in range(8):
+            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])# Calculate row index
+
+            column = s_box_input[i][1:-1]
+            column_binary = ''.join(str(bit) for bit in column)
+
+            column = int(column_binary, 2)
+
+            output_value = self.S_BOXES[i][row * 16 + column]
+
+            output_bits = format(output_value, '04b')  # Convert to 4-bit binary
+
+            result.append(output_bits)
+        result = ''.join(result)
+        result = [int(bit) for bit in result]
+
+        return result
 
     def _chunk_crypt(self, block, crypt_type):
         """
@@ -212,13 +235,13 @@ class DES:
         # Apply the initial permutation using IP
         block = permutation(block, self.IP)
 
-        # Split the block into left and right halves
-        self.L = block[:32]
-        self.R = block[32:]
-
         # Use subkeys in reverse order for decryption
         if crypt_type == self.DECRYPTION:
             self.Kn = self.Kn[::-1]
+
+        # Split the block into left and right halves
+        self.L = block[:32]
+        self.R = block[32:]
 
         # Perform 16 rounds of Feistel network
         for i, subkey in enumerate(self.Kn):
@@ -249,33 +272,8 @@ class DES:
 
         # Apply the final permutation using FP
         self.final = permutation(final_block, self.FP)
-        print("FINAL: ", len(self.final))
+        #print("FINAL: ", len(self.final))
         return self.final
-
-
-    def s_box_substitution(self, data):
-        # Implement the S-box substitution logic using the provided S-boxes
-        result = []
-        s_box_input = [data[i:i+6] for i in range(0, len(data), 6)]
-
-        for i in range(8):
-            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])# Calculate row index
-
-            column = s_box_input[i][1:-1]
-            column_binary = ''.join(str(bit) for bit in column)
-
-            column = int(column_binary, 2)
-
-            output_value = self.S_BOXES[i][row * 16 + column]
-
-            output_bits = format(output_value, '04b')  # Convert to 4-bit binary
-
-            result.append(output_bits)
-        result = ''.join(result)
-        result = [int(bit) for bit in result]
-
-        return result
-
 
     def crypt(self, data, crypt_type):
         """
@@ -286,13 +284,14 @@ class DES:
             data: It is a bytearray, the data to crypt.
             crypt_type: A constant value, if encrypt it is self.ENCRYPT, if decrypt it is self.DECRYPT
         """
-
+        print("DATA:",data)
         # Data sanity check before starting. Do not change codes.
         if len(data) % self.block_size != 0:
             if crypt_type == self.DECRYPTION:
                 raise ValueError("Invalid data length. The encrypted file is corrupted.\n")
             else:
                 data += (self.block_size - (len(data) % self.block_size)) * None
+
         if self.mode == "CBC":
             # We will need IV if the mode is CBC.
             iv = stringToBits(self.IV)
@@ -302,7 +301,7 @@ class DES:
         result = list()
         while i < len(data):
             block = stringToBits(data[i:i + 8])
-
+            #print("BLOCK: ", len(block))
             # XOR with IV if the mode is CBC
             if self.mode == "CBC":
                 # Implement the CBC logic here. Consider both encryption and decryption.
@@ -322,7 +321,8 @@ class DES:
                 # YOUR CODE HERE
                 #######################################
                 cipherBlock = self._chunk_crypt(block, crypt_type)
-
+            print("CIPHER: ", cipherBlock)
+            print(bitsToString(cipherBlock))
             result.append(bitsToString(cipherBlock))
             i += 8
         print("RESULT: ", result)
@@ -400,5 +400,6 @@ if __name__ == "__main__":
     #publickey = "elpmas"
     IV = "initial"
     #IV = "laitini"
-    res = test("test.txt", publickey, IV, save=True)
+    res = test("test.txt", publickey, IV, save=False)
+
 
