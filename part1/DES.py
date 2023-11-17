@@ -31,7 +31,7 @@ class DES:
     LEFT_ROTATIONS = [
         1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
     ]
-#Initial Permutation
+    #Initial Permutation
     IP = [57, 49, 41, 33, 25, 17, 9, 1,
           59, 51, 43, 35, 27, 19, 11, 3,
           61, 53, 45, 37, 29, 21, 13, 5,
@@ -111,7 +111,7 @@ class DES:
         18, 12, 29, 5, 21, 10,
         3, 24
     ]
-#Final Permutation
+    #Final Permutation
     FP = [
         39, 7, 47, 15, 55, 23, 63, 31,
         38, 6, 46, 14, 54, 22, 62, 30,
@@ -254,7 +254,7 @@ class DES:
 
 
     def s_box_substitution(self, data):
-    # Implement the S-box substitution logic using the provided S-boxes
+        # Implement the S-box substitution logic using the provided S-boxes
         result = []
         s_box_input = [data[i:i+6] for i in range(0, len(data), 6)]
 
