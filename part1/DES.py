@@ -160,7 +160,8 @@ class DES:
         # YOUR CODE HERE
         #################################
         self.publicKey = stringToBits(self.publicKey)
-        print("BIT PUBLIC KEY", (self.publicKey))
+        a = ''.join(str(bit) for bit in self.publicKey)
+        print("BIT PUBLIC KEY",self.publicKey)
         print(len(self.publicKey))
 
         parity_drop_key = permutation(self.publicKey, self.PC1)
@@ -174,7 +175,7 @@ class DES:
             self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
 
             LeftRight = self.L + self.R
-            # print("SUB KEY", (LeftRight))
+            print("SUB KEY", (LeftRight))
             subkey = permutation(LeftRight, self.PC2)
 
             self.Kn[i] = subkey
