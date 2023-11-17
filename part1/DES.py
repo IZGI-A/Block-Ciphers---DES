@@ -31,7 +31,7 @@ class DES:
     LEFT_ROTATIONS = [
         1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
     ]
-    #Initial Permutation
+    # Initial Permutation
     IP = [57, 49, 41, 33, 25, 17, 9, 1,
           59, 51, 43, 35, 27, 19, 11, 3,
           61, 53, 45, 37, 29, 21, 13, 5,
@@ -111,7 +111,7 @@ class DES:
         18, 12, 29, 5, 21, 10,
         3, 24
     ]
-    #Final Permutation
+    # Final Permutation
     FP = [
         39, 7, 47, 15, 55, 23, 63, 31,
         38, 6, 46, 14, 54, 22, 62, 30,
@@ -160,7 +160,7 @@ class DES:
         # YOUR CODE HERE
         #################################
         self.publicKey = stringToBits(self.publicKey)
-        print("BIT PUBLIC KEY",(self.publicKey))
+        print("BIT PUBLIC KEY", (self.publicKey))
         print(len(self.publicKey))
 
         parity_drop_key = permutation(self.publicKey, self.PC1)
@@ -174,34 +174,27 @@ class DES:
             self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
 
             LeftRight = self.L + self.R
-            #print("SUB KEY", (LeftRight))
+            # print("SUB KEY", (LeftRight))
             subkey = permutation(LeftRight, self.PC2)
 
             self.Kn[i] = subkey
 
-        print(self.Kn)
+        for i in range(16):
+            print("SUB KEY", len(self.Kn[i]), self.Kn[i])
 
     def s_box_substitution(self, data):
         # Implement the S-box substitution logic using the provided S-boxes
-        result = []
-        s_box_input = [data[i:i+6] for i in range(0, len(data), 6)]
-
+        # You should get the result in a variable named 'result'
+        #######################################
+        # YOUR CODE HERE
+        #######################################
+        result = list()
         for i in range(8):
-            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])# Calculate row index
-
-            column = s_box_input[i][1:-1]
-            column_binary = ''.join(str(bit) for bit in column)
-
-            column = int(column_binary, 2)
-
-            output_value = self.S_BOXES[i][row * 16 + column]
-
-            output_bits = format(output_value, '04b')  # Convert to 4-bit binary
-
-            result.append(output_bits)
-        result = ''.join(result)
-        result = [int(bit) for bit in result]
-
+            row = data[i * 6] * 2 + data[i * 6 + 5]
+            col = data[i * 6 + 1] * 8 + data[i * 6 + 2] * 4 + data[i * 6 + 3] * 2 + data[i * 6 + 4]
+            val = self.S_BOXES[i][row * 16 + col]
+            bin_val = bin(val)[2:].zfill(4)
+            result += [int(x) for x in bin_val]
         return result
 
     def _chunk_crypt(self, block, crypt_type):
@@ -257,22 +250,24 @@ class DES:
 
             # Apply S-box substitution
             s_box_output = self.s_box_substitution(xor_result)
-            #print("SBOx: ", s_box_output)
+            # print("SBOx: ", s_box_output)
             # Permute the result using P table
             permuted_result = permutation(s_box_output, self.P)
-            #print("PERMUTED: ", permuted_result)
+            # print("PERMUTED: ", permuted_result)
             # XOR the permuted result with the original L
             new_L = xor(L_temp, permuted_result)
 
             # Swap L and R for the next round
-            self.L, self.R = R_temp, new_L
+            if i != 15:
+                self.L = R_temp
+                self.R = new_L
 
         # Combine the final L and R
         final_block = self.L + self.R
 
         # Apply the final permutation using FP
         self.final = permutation(final_block, self.FP)
-        #print("FINAL: ", len(self.final))
+        # print("FINAL: ", len(self.final))
         return self.final
 
     def crypt(self, data, crypt_type):
@@ -284,7 +279,7 @@ class DES:
             data: It is a bytearray, the data to crypt.
             crypt_type: A constant value, if encrypt it is self.ENCRYPT, if decrypt it is self.DECRYPT
         """
-        print("DATA:",data)
+        print("DATA:", data)
         # Data sanity check before starting. Do not change codes.
         if len(data) % self.block_size != 0:
             if crypt_type == self.DECRYPTION:
@@ -301,7 +296,7 @@ class DES:
         result = list()
         while i < len(data):
             block = stringToBits(data[i:i + 8])
-            #print("BLOCK: ", len(block))
+            print("BLOCK: ", len(block), block)
             # XOR with IV if the mode is CBC
             if self.mode == "CBC":
                 # Implement the CBC logic here. Consider both encryption and decryption.
@@ -322,10 +317,19 @@ class DES:
                 #######################################
                 cipherBlock = self._chunk_crypt(block, crypt_type)
             print("CIPHER: ", cipherBlock)
-            print(bitsToString(cipherBlock))
+            # print(bitsToString(cipherBlock))
+            tmp = bitsToString(cipherBlock)
+            print("TMP: ", "%X %X %X %X %X %X %X %X" % (tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7]))
+            print("%c" % tmp[0])
             result.append(bitsToString(cipherBlock))
             i += 8
-        print("RESULT: ", result)
+        print("RESULT: ", result, type(result))
+        bs = bytes.fromhex('').join(result)
+        print("BS: ", type(bs))
+        for i, b in enumerate(bs):
+            print("%X-" % b, end="")
+        print()
+        print(len(bs), len(result), len(data))
         return bytes.fromhex('').join(result)
 
     def encrpyt(self, data: bytearray):
@@ -346,6 +350,7 @@ class DES:
         """
         data = validateEncoding(data)
         data = self.crypt(data, self.DECRYPTION)
+        print("ENC DATA: ", data)
         print(unpadData(data))
         return unpadData(data)
 
@@ -391,15 +396,17 @@ def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_
         with open(filename, "wb") as f:
             f.write(result)
     else:
-        print(result)
+        for res in result:
+            for i, r in enumerate(res):
+                print(f"%x", r, end="")
         return result
 
 
 if __name__ == "__main__":
     publickey = "sample"
-    #publickey = "elpmas"
+    # publickey = "elpmas"
     IV = "initial"
-    #IV = "laitini"
-    res = test("test.txt", publickey, IV, save=False)
-
-
+    # IV = "laitini"
+    res = test("test.txt", publickey, IV, save=True)
+    dec = test("encrypted.txt", publickey, IV, cipher_mode="d", save=False)
+    # print(dec)
