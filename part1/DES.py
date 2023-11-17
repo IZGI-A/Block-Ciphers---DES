@@ -234,43 +234,48 @@ class DES:
 
             # Apply S-box substitution
             s_box_output = self.s_box_substitution(xor_result)
-
+            #print("SBOx: ", s_box_output)
             # Permute the result using P table
             permuted_result = permutation(s_box_output, self.P)
-
+            #print("PERMUTED: ", permuted_result)
             # XOR the permuted result with the original L
-            self.L = xor(L_temp, permuted_result)
+            new_L = xor(L_temp, permuted_result)
 
             # Swap L and R for the next round
-            self.L, self.R = R_temp, self.L
+            self.L, self.R = R_temp, new_L
 
         # Combine the final L and R
         final_block = self.L + self.R
 
         # Apply the final permutation using FP
         self.final = permutation(final_block, self.FP)
-
+        print("FINAL: ", len(self.final))
         return self.final
 
 
     def s_box_substitution(self, data):
     # Implement the S-box substitution logic using the provided S-boxes
         result = []
+        s_box_input = [data[i:i+6] for i in range(0, len(data), 6)]
+
         for i in range(8):
-        # Take 6 bits from the data
-            chunk = data[i * 6: (i + 1) * 6]
+            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])# Calculate row index
 
-        # Extract row and column indices
-            row = (chunk[0] << 1) + chunk[5]
-            col = (chunk[1] << 3) + (chunk[2] << 2) + (chunk[3] << 1) + chunk[4]
+            column = s_box_input[i][1:-1]
+            column_binary = ''.join(str(bit) for bit in column)
 
-        # Look up the value in the corresponding S-box
-            value = self.S_BOXES[i][row * 16 + col]
+            column = int(column_binary, 2)
 
-        # Convert the value to 4 bits and append to the result
-            result.extend([(value >> 3) & 1, (value >> 2) & 1, (value >> 1) & 1, value & 1])
+            output_value = self.S_BOXES[i][row * 16 + column]
+
+            output_bits = format(output_value, '04b')  # Convert to 4-bit binary
+
+            result.append(output_bits)
+        result = ''.join(result)
+        result = [int(bit) for bit in result]
 
         return result
+
 
     def crypt(self, data, crypt_type):
         """
@@ -360,7 +365,7 @@ def handleKey(key: str):
     return key
 
 
-def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_mode="d"):
+def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_mode="e"):
     """
     A test function to test your DES module. You will input the path of the input file, publickey and IV with other
     settings. If the save flag is active the outputs will be saved. The filenames are hardcoded you can change codes.
@@ -395,5 +400,5 @@ if __name__ == "__main__":
     #publickey = "elpmas"
     IV = "initial"
     #IV = "laitini"
-    res = test("encrypted.txt", publickey, IV, save=True)
+    res = test("test.txt", publickey, IV, save=True)
 
