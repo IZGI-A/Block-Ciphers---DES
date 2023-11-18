@@ -1,5 +1,6 @@
 from util import *
-
+import os
+import sys
 
 class DES:
     # DO NOT CHANGE
@@ -156,46 +157,44 @@ class DES:
 
         # Complete the DES key schedule
         # Use permutation and rotation tables above
-        #################################
-        # YOUR CODE HERE
-        #################################
-        self.publicKey = stringToBits(self.publicKey)
-        a = ''.join(str(bit) for bit in self.publicKey)
-        print("BIT PUBLIC KEY",self.publicKey)
-        print(len(self.publicKey))
 
-        parity_drop_key = permutation(self.publicKey, self.PC1)
-        print("PARITY DROP KEY", parity_drop_key)
-        print(len(parity_drop_key))
-        self.L = parity_drop_key[:28]
-        self.R = parity_drop_key[28:]
+        publicKey = stringToBits(self.publicKey)
+
+        parity_drop_key = permutation(publicKey, self.PC1)
+        self.LK = parity_drop_key[:28]
+        self.RK = parity_drop_key[28:]
 
         for i in range(16):
-            self.L = self.L[self.LEFT_ROTATIONS[i]:] + self.L[:self.LEFT_ROTATIONS[i]]
-            self.R = self.R[self.LEFT_ROTATIONS[i]:] + self.R[:self.LEFT_ROTATIONS[i]]
+            self.LK = self.LK[self.LEFT_ROTATIONS[i]:] + self.LK[:self.LEFT_ROTATIONS[i]]
+            self.RK = self.RK[self.LEFT_ROTATIONS[i]:] + self.RK[:self.LEFT_ROTATIONS[i]]
 
-            LeftRight = self.L + self.R
-            print("SUB KEY", (LeftRight))
+            LeftRight = self.LK + self.RK
             subkey = permutation(LeftRight, self.PC2)
 
             self.Kn[i] = subkey
 
-        for i in range(16):
-            print("SUB KEY", len(self.Kn[i]), self.Kn[i])
 
     def s_box_substitution(self, data):
         # Implement the S-box substitution logic using the provided S-boxes
-        # You should get the result in a variable named 'result'
-        #######################################
-        # YOUR CODE HERE
-        #######################################
-        result = list()
+
+        result = []
+        s_box_input = [data[i:i + 6] for i in range(0, len(data), 6)]
         for i in range(8):
-            row = data[i * 6] * 2 + data[i * 6 + 5]
-            col = data[i * 6 + 1] * 8 + data[i * 6 + 2] * 4 + data[i * 6 + 3] * 2 + data[i * 6 + 4]
-            val = self.S_BOXES[i][row * 16 + col]
-            bin_val = bin(val)[2:].zfill(4)
-            result += [int(x) for x in bin_val]
+            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])  # Calculate row index
+
+            column = s_box_input[i][1:-1]
+            column_binary = ''.join(str(bit) for bit in column)
+
+            column = int(column_binary, 2)
+
+            output_value = self.S_BOXES[i][row * 16 + column]
+
+            output_bits = format(output_value, '04b')  # Convert to 4-bit binary
+
+            result.append(output_bits)
+        result = ''.join(result)
+        result = [int(bit) for bit in result]
+
         return result
 
     def _chunk_crypt(self, block, crypt_type):
@@ -214,61 +213,49 @@ class DES:
         Output:
             self.final: It is a storage value, holds the value of the final state after the last step
         """
-        # COMPLETE THE CODE BELOW
-        # Start with initial permutation and split your 64 bits input into two halves.
-        # If the mode is encryption start from Kn[0] to Kn[15]
-        # Else start from Kn[15] to Kn[0]
-        # Start Feistel Function for every subkey
-        # Concat left and right halves
-        # Final permutation with FP table
-        # Save results to self.final
-        #######################################
-        # YOUR CODE HERE
-        #######################################
-
         # Apply the initial permutation using IP
         block = permutation(block, self.IP)
 
         # Use subkeys in reverse order for decryption
         if crypt_type == self.DECRYPTION:
-            self.Kn = self.Kn[::-1]
+            Kn = self.Kn[::-1]
+        else:
+            Kn = self.Kn
 
         # Split the block into left and right halves
-        self.L = block[:32]
-        self.R = block[32:]
+        L = block[:32]
+        R = block[32:]
 
         # Perform 16 rounds of Feistel network
-        for i, subkey in enumerate(self.Kn):
-            # Save the current values of L and R
-            L_temp = self.L.copy()
-            R_temp = self.R.copy()
-
+        for i, subkey in enumerate(Kn):
             # Expand and permute R using E table
-            expanded_R = permutation(R_temp, self.E)
+            expanded_R = permutation(R, self.E)
 
             # XOR the expanded R with the subkey
             xor_result = xor(expanded_R, subkey)
 
             # Apply S-box substitution
             s_box_output = self.s_box_substitution(xor_result)
-            # print("SBOx: ", s_box_output)
+
             # Permute the result using P table
             permuted_result = permutation(s_box_output, self.P)
-            # print("PERMUTED: ", permuted_result)
+
             # XOR the permuted result with the original L
-            new_L = xor(L_temp, permuted_result)
+            new_L = xor(L, permuted_result)
 
             # Swap L and R for the next round
+            # L, R = R, new_L
             if i != 15:
-                self.L = R_temp
-                self.R = new_L
-
+                L = R
+                R = new_L
+            else:
+                L = new_L
+                R = R
         # Combine the final L and R
-        final_block = self.L + self.R
+        final_block = L + R
 
         # Apply the final permutation using FP
         self.final = permutation(final_block, self.FP)
-        # print("FINAL: ", len(self.final))
         return self.final
 
     def crypt(self, data, crypt_type):
@@ -280,7 +267,6 @@ class DES:
             data: It is a bytearray, the data to crypt.
             crypt_type: A constant value, if encrypt it is self.ENCRYPT, if decrypt it is self.DECRYPT
         """
-        print("DATA:", data)
         # Data sanity check before starting. Do not change codes.
         if len(data) % self.block_size != 0:
             if crypt_type == self.DECRYPTION:
@@ -297,40 +283,29 @@ class DES:
         result = list()
         while i < len(data):
             block = stringToBits(data[i:i + 8])
-            print("BLOCK: ", len(block), block)
+            # print("BLOCK: ", len(block), block)
             # XOR with IV if the mode is CBC
             if self.mode == "CBC":
                 # Implement the CBC logic here. Consider both encryption and decryption.
                 # The mode is given by the parameter crypt_type
                 # You should get the result in a variable named 'cipherBlock'
-
-                #######################################
-                # YOUR CODE HERE
-                #######################################
-                print()
-
+                if crypt_type == self.ENCRYPTION:
+                    block = xor(block, iv)
+                    cipherBlock = self._chunk_crypt(block, crypt_type)
+                    iv = cipherBlock
+                elif crypt_type == self.DECRYPTION:
+                    cipherBlock = self._chunk_crypt(block, crypt_type)
+                    cipherBlock = xor(cipherBlock, iv)
+                    iv = block
+                else:
+                    raise ValueError("Invalid crypt_type. crypt_type should be either ENCRYPTION or DECRYPTION.")
             # If the mode is ECB
             else:
                 # Implement the ECB logic here.
                 # You should get the result in a variable named 'cipherBlock'
-                #######################################
-                # YOUR CODE HERE
-                #######################################
                 cipherBlock = self._chunk_crypt(block, crypt_type)
-            print("CIPHER: ", cipherBlock)
-            # print(bitsToString(cipherBlock))
-            tmp = bitsToString(cipherBlock)
-            print("TMP: ", "%X %X %X %X %X %X %X %X" % (tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7]))
-            print("%c" % tmp[0])
             result.append(bitsToString(cipherBlock))
             i += 8
-        print("RESULT: ", result, type(result))
-        bs = bytes.fromhex('').join(result)
-        print("BS: ", type(bs))
-        for i, b in enumerate(bs):
-            print("%X-" % b, end="")
-        print()
-        print(len(bs), len(result), len(data))
         return bytes.fromhex('').join(result)
 
     def encrpyt(self, data: bytearray):
@@ -351,8 +326,6 @@ class DES:
         """
         data = validateEncoding(data)
         data = self.crypt(data, self.DECRYPTION)
-        print("ENC DATA: ", data)
-        print(unpadData(data))
         return unpadData(data)
 
 
@@ -378,9 +351,8 @@ def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_
     If everything is correct, you should be able to restore the encrypted file by using decryption.
     """
     publickey = handleKey(publickey)
-    print(publickey)
+
     IV = handleKey(IV)
-    print(IV)
 
     cipher = DES(publickey, IV, mode=mode)
     if cipher_mode == "e":
@@ -393,21 +365,47 @@ def test(inputfile: str, publickey: str, IV: str, mode="ECB", save=True, cipher_
         raise ValueError("Cipher mode should be 'e' for encryption, 'd' for decryption.")
 
     if save:
-        filename = "encrypted.txt" if cipher_mode == "e" else "restored.txt"
+        filename = "encrypted.bin" if cipher_mode == "e" else "restored.txt"
         with open(filename, "wb") as f:
             f.write(result)
     else:
-        for res in result:
-            for i, r in enumerate(res):
-                print(f"%x", r, end="")
-        return result
-
+        print(result)
 
 if __name__ == "__main__":
-    publickey = "sample"
-    # publickey = "elpmas"
-    IV = "initial"
-    # IV = "laitini"
-    res = test("test.txt", publickey, IV, save=True)
-    dec = test("encrypted.txt", publickey, IV, cipher_mode="d", save=False)
-    # print(dec)
+    if len(sys.argv) != 5:
+        print("Usage: python3 DES.py <inputfile> <settingsfile> <mode> <crypt_type>")
+        sys.exit(1)
+    inputfile = sys.argv[1]
+    settings = sys.argv[2]
+    with open(settings, "r") as f:
+        publickey = f.readline().strip()
+        IV = f.readline().strip()
+    mode = sys.argv[3]
+    crypt_type = sys.argv[4]
+    if crypt_type == "-encrypt":
+        crypt_type = 0
+    elif crypt_type == "-decrypt":
+        crypt_type = 1
+    else:
+        print("crypt_type should be '-encrypt' for encryption, '-decrypt' for decryption.")
+        sys.exit(1)
+
+    publickey = handleKey(publickey)
+    IV = handleKey(IV)
+
+    des = DES(publickey, IV, mode=mode)
+
+    if crypt_type == DES.ENCRYPTION:
+        result = des.encrpyt(readBytesFromFile(inputfile))
+    else:
+        result = des.decrypt(readBytesFromFile(inputfile))
+        result = bytearray(result)
+
+    filename = "encrypted.bin" if crypt_type == 0 else "restored.txt"
+    with open(filename, "wb") as f:
+        f.write(result)
+
+    # publickey = "samplekeystring"[:8]
+    # IV = "initial"
+    # res = test("test.txt", publickey, IV, mode="CBC", save=True)
+    # dec = test("encrypted.bin", publickey, IV, mode="CBC", cipher_mode="d", save=False)
