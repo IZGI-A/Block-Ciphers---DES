@@ -178,10 +178,13 @@ class DES:
         # Implement the S-box substitution logic using the provided S-boxes
 
         result = []
+        # Break input data into 6-bit chunks
         s_box_input = [data[i:i + 6] for i in range(0, len(data), 6)]
+        # Iterate through 8 chunks
         for i in range(8):
-            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])  # Calculate row index
-
+            # Calculate row index in decimal using first and last bits
+            row = (s_box_input[i][0] * 2 + s_box_input[i][-1])
+            # Extract the middle 4 bits for the column index
             column = s_box_input[i][1:-1]
             column_binary = ''.join(str(bit) for bit in column)
 
